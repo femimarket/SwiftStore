@@ -60,6 +60,7 @@ struct ContentView: View {
     let miniApps: [MiniApp]
 
     @State private var selection: String?
+    @State private var searchText: String = ""
     @Namespace private var zoomNamespace
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.horizontalSizeClass) private var sizeClass
@@ -67,6 +68,14 @@ struct ContentView: View {
     init(miniApps: [MiniApp]) {
         self.miniApps = miniApps
         _selection = State(initialValue: miniApps.first?.id)
+    }
+
+    private var filteredApps: [MiniApp] {
+        guard !searchText.isEmpty else { return miniApps }
+        return miniApps.filter {
+            $0.name.localizedStandardContains(searchText) ||
+                $0.tagline.localizedStandardContains(searchText)
+        }
     }
 
     var body: some View {
@@ -102,7 +111,8 @@ struct ContentView: View {
                     MiniAppWorld(
                         app: app,
                         isActive: selection == app.id,
-                        namespace: zoomNamespace
+                        namespace: zoomNamespace,
+                        reduceMotion: reduceMotion
                     )
                     .containerRelativeFrame(.horizontal)
                     .id(app.id)
@@ -136,10 +146,11 @@ struct ContentView: View {
                     MiniAppWorld(
                         app: app,
                         isActive: true,
-                        namespace: zoomNamespace
+                        namespace: zoomNamespace,
+                        reduceMotion: reduceMotion
                     )
                     .id(app.id)
-                    .transition(reduceMotion ? .opacity : .opacity)
+                    .transition(.opacity)
                 }
             }
             .animation(.easeOut(duration: 0.25), value: selection)
@@ -147,37 +158,85 @@ struct ContentView: View {
     }
 
     private var sidebar: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Mini Apps")
-                    .font(.title2.weight(.semibold))
-                    .foregroundStyle(.white)
-                    .tracking(-0.4)
-                    .padding(.horizontal, 16)
-                    .padding(.top, 28)
-                    .padding(.bottom, 4)
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Mini Apps")
+                .font(.title2.weight(.semibold))
+                .foregroundStyle(.white)
+                .tracking(-0.4)
+                .padding(.horizontal, 16)
+                .padding(.top, 28)
 
-                Text("\(miniApps.count) apps")
-                    .font(.footnote)
-                    .foregroundStyle(StoreTheme.mutedSoft)
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 20)
+            Text("^[\(miniApps.count) app](inflect: true)")
+                .font(.footnote)
+                .foregroundStyle(StoreTheme.mutedSoft)
+                .padding(.horizontal, 16)
+                .padding(.top, 4)
+                .padding(.bottom, 16)
 
-                ForEach(miniApps) { app in
-                    Button {
-                        withAnimation(.easeOut(duration: 0.18)) {
-                            selection = app.id
+            searchField
+                .padding(.horizontal, 12)
+                .padding(.bottom, 12)
+
+            ScrollView {
+                LazyVStack(spacing: 2) {
+                    ForEach(filteredApps) { app in
+                        Button {
+                            withAnimation(.easeOut(duration: 0.18)) {
+                                selection = app.id
+                            }
+                        } label: {
+                            SidebarRow(app: app, isSelected: selection == app.id)
                         }
-                    } label: {
-                        SidebarRow(app: app, isSelected: selection == app.id)
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
+
+                    if filteredApps.isEmpty {
+                        Text("No results")
+                            .font(.footnote)
+                            .foregroundStyle(StoreTheme.mutedSoft)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding(.top, 24)
+                    }
                 }
+                .padding(.horizontal, 8)
+                .padding(.bottom, 20)
             }
-            .padding(.horizontal, 8)
-            .padding(.bottom, 20)
         }
         .background(StoreTheme.canvas)
+    }
+
+    private var searchField: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(StoreTheme.mutedSoft)
+            TextField("Search", text: $searchText)
+                .textFieldStyle(.plain)
+                .font(.system(size: 14))
+                .foregroundStyle(.white)
+                .submitLabel(.search)
+            if !searchText.isEmpty {
+                Button {
+                    searchText = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 13))
+                        .foregroundStyle(StoreTheme.mutedSoft)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Text("Clear search"))
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 9)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(StoreTheme.surface)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .strokeBorder(StoreTheme.hairlineSoft, lineWidth: 0.5)
+        )
     }
 }
 
@@ -227,16 +286,24 @@ private struct MiniAppWorld: View {
     let app: MiniApp
     let isActive: Bool
     let namespace: Namespace.ID
+    let reduceMotion: Bool
 
     var body: some View {
         ZStack {
             StoreTheme.canvas.ignoresSafeArea()
+            vignette
 
             VStack(spacing: 0) {
                 Spacer(minLength: 40)
 
                 iconBadge
                     .matchedTransitionSource(id: app.id, in: namespace)
+                    .scaleEffect(reduceMotion ? 1.0 : (isActive ? 1.0 : 0.96))
+                    .animation(.spring(response: 0.5, dampingFraction: 0.78), value: isActive)
+                    .scrollTransition(axis: .horizontal) { content, phase in
+                        content
+                            .offset(x: reduceMotion ? 0 : -phase.value * 36)
+                    }
                     .padding(.bottom, 44)
 
                 Text(app.name)
@@ -262,9 +329,24 @@ private struct MiniAppWorld: View {
             }
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(app.name). \(app.tagline)")
-        .accessibilityHint("Double tap to open \(app.name)")
+        .accessibilityLabel(Text("\(app.name). \(app.tagline)"))
+        .accessibilityHint(Text("Double tap to open \(app.name)"))
         .accessibilityAddTraits(.isHeader)
+    }
+
+    private var vignette: some View {
+        LinearGradient(
+            colors: [
+                .black.opacity(0.15),
+                .clear,
+                .clear,
+                .black.opacity(0.12)
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+        .ignoresSafeArea()
+        .allowsHitTesting(false)
     }
 
     private var iconBadge: some View {
@@ -314,7 +396,7 @@ private struct MiniAppWorld: View {
         }
         .buttonStyle(.plain)
         .hoverEffect(.lift)
-        .accessibilityLabel("Open \(app.name)")
+        .accessibilityLabel(Text("Open \(app.name)"))
         .accessibilityAddTraits(.isButton)
     }
 }
