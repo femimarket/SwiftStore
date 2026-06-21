@@ -42,11 +42,27 @@ struct MiniApp: Identifiable, Hashable {
     }
 }
 
+// MARK: - Theme
+
+private enum StoreTheme {
+    static let canvas = Color(red: 0.04, green: 0.04, blue: 0.05)
+    static let surface = Color.white.opacity(0.04)
+    static let surfaceStrong = Color.white.opacity(0.06)
+    static let hairline = Color.white.opacity(0.10)
+    static let hairlineSoft = Color.white.opacity(0.06)
+    static let muted = Color.white.opacity(0.50)
+    static let mutedSoft = Color.white.opacity(0.35)
+}
+
+// MARK: - ContentView
+
 struct ContentView: View {
     let miniApps: [MiniApp]
 
     @State private var selection: String?
+    @Namespace private var zoomNamespace
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
     init(miniApps: [MiniApp]) {
         self.miniApps = miniApps
@@ -54,37 +70,46 @@ struct ContentView: View {
     }
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            Color.black.ignoresSafeArea()
-
-            worldsScroller
-
-            indicator
-                .padding(.bottom, 24)
-                .accessibilityHidden(true)
+        Group {
+            if sizeClass == .regular {
+                regularLayout
+            } else {
+                compactLayout
+            }
         }
+        .background(StoreTheme.canvas.ignoresSafeArea())
         .sensoryFeedback(.selection, trigger: selection)
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
         .navigationDestination(for: MiniApp.self) { app in
             app.destination()
+                .navigationTransition(.zoom(sourceID: app.id, in: zoomNamespace))
         }
         .preferredColorScheme(.dark)
+    }
+
+    // MARK: Compact
+
+    private var compactLayout: some View {
+        worldsScroller
     }
 
     private var worldsScroller: some View {
         ScrollView(.horizontal) {
             LazyHStack(spacing: 0) {
                 ForEach(miniApps) { app in
-                    MiniAppWorld(app: app)
-                        .containerRelativeFrame(.horizontal)
-                        .id(app.id)
-                        .scrollTransition(axis: .horizontal) { content, phase in
-                            content
-                                .opacity(reduceMotion ? 1 : (phase.isIdentity ? 1 : 0.35))
-                                .scaleEffect(reduceMotion ? 1 : (phase.isIdentity ? 1 : 0.94))
-                        }
+                    MiniAppWorld(
+                        app: app,
+                        isActive: selection == app.id,
+                        namespace: zoomNamespace
+                    )
+                    .containerRelativeFrame(.horizontal)
+                    .id(app.id)
+                    .scrollTransition(axis: .horizontal) { content, phase in
+                        content
+                            .opacity(reduceMotion ? 1 : (phase.isIdentity ? 1 : 0.4))
+                    }
                 }
             }
             .scrollTargetLayout()
@@ -94,22 +119,105 @@ struct ContentView: View {
         .scrollIndicators(.hidden)
     }
 
-    private var indicator: some View {
-        HStack(spacing: 6) {
-            ForEach(miniApps) { app in
-                Capsule()
-                    .fill(
-                        selection == app.id
-                            ? Color.white
-                            : Color.white.opacity(0.22)
+    // MARK: Regular
+
+    private var regularLayout: some View {
+        HStack(spacing: 0) {
+            sidebar
+                .frame(width: 300)
+
+            Rectangle()
+                .fill(StoreTheme.hairlineSoft)
+                .frame(width: 0.5)
+                .ignoresSafeArea()
+
+            ZStack {
+                if let app = miniApps.first(where: { $0.id == selection }) {
+                    MiniAppWorld(
+                        app: app,
+                        isActive: true,
+                        namespace: zoomNamespace
                     )
-                    .frame(width: selection == app.id ? 22 : 6, height: 6)
-                    .animation(.spring(response: 0.35, dampingFraction: 0.85), value: selection)
+                    .id(app.id)
+                    .transition(reduceMotion ? .opacity : .opacity)
+                }
             }
+            .animation(.easeOut(duration: 0.25), value: selection)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .glassEffect(.regular, in: .capsule)
+    }
+
+    private var sidebar: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Mini Apps")
+                    .font(.title2.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .tracking(-0.4)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 28)
+                    .padding(.bottom, 4)
+
+                Text("\(miniApps.count) apps")
+                    .font(.footnote)
+                    .foregroundStyle(StoreTheme.mutedSoft)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 20)
+
+                ForEach(miniApps) { app in
+                    Button {
+                        withAnimation(.easeOut(duration: 0.18)) {
+                            selection = app.id
+                        }
+                    } label: {
+                        SidebarRow(app: app, isSelected: selection == app.id)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 8)
+            .padding(.bottom, 20)
+        }
+        .background(StoreTheme.canvas)
+    }
+}
+
+// MARK: - Sidebar row
+
+private struct SidebarRow: View {
+    let app: MiniApp
+    let isSelected: Bool
+
+    var body: some View {
+        HStack(spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .fill(app.tint)
+                Image(systemName: app.icon)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(.white)
+            }
+            .frame(width: 32, height: 32)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(app.name)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.white)
+                Text(app.tagline)
+                    .font(.caption)
+                    .foregroundStyle(StoreTheme.mutedSoft)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(isSelected ? StoreTheme.surfaceStrong : Color.clear)
+        )
+        .contentShape(Rectangle())
+        .hoverEffect()
     }
 }
 
@@ -117,31 +225,34 @@ struct ContentView: View {
 
 private struct MiniAppWorld: View {
     let app: MiniApp
+    let isActive: Bool
+    let namespace: Namespace.ID
 
     var body: some View {
         ZStack {
-            atmosphere
+            StoreTheme.canvas.ignoresSafeArea()
 
             VStack(spacing: 0) {
                 Spacer(minLength: 40)
 
                 iconBadge
-                    .padding(.bottom, 40)
+                    .matchedTransitionSource(id: app.id, in: namespace)
+                    .padding(.bottom, 44)
 
                 Text(app.name)
-                    .font(.system(size: 40, weight: .bold))
+                    .font(.system(size: 34, weight: .semibold))
                     .foregroundStyle(.white)
-                    .tracking(-0.8)
+                    .tracking(-0.5)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 24)
-                    .padding(.bottom, 12)
+                    .padding(.bottom, 10)
                     .dynamicTypeSize(...DynamicTypeSize.accessibility1)
 
                 Text(app.tagline)
-                    .font(.callout.weight(.medium))
-                    .foregroundStyle(.white.opacity(0.68))
+                    .font(.system(size: 14, weight: .regular))
+                    .foregroundStyle(StoreTheme.muted)
                     .multilineTextAlignment(.center)
-                    .padding(.horizontal, 40)
+                    .padding(.horizontal, 44)
                     .dynamicTypeSize(...DynamicTypeSize.accessibility2)
 
                 Spacer(minLength: 40)
@@ -152,82 +263,57 @@ private struct MiniAppWorld: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(app.name). \(app.tagline)")
+        .accessibilityHint("Double tap to open \(app.name)")
         .accessibilityAddTraits(.isHeader)
-    }
-
-    private var atmosphere: some View {
-        ZStack {
-            MeshGradient(
-                width: 3,
-                height: 3,
-                points: [
-                    [0.0, 0.0], [0.5, 0.0], [1.0, 0.0],
-                    [0.0, 0.5], [0.5, 0.32], [1.0, 0.5],
-                    [0.0, 1.0], [0.5, 1.0], [1.0, 1.0]
-                ],
-                colors: [
-                    .black,
-                    app.tint.opacity(0.60),
-                    .black,
-                    app.tint.opacity(0.32),
-                    app.tint.opacity(0.78),
-                    app.tint.opacity(0.22),
-                    .black,
-                    app.tint.opacity(0.18),
-                    .black
-                ]
-            )
-
-            RadialGradient(
-                colors: [.clear, .black.opacity(0.40)],
-                center: .center,
-                startRadius: 240,
-                endRadius: 620
-            )
-        }
-        .ignoresSafeArea()
     }
 
     private var iconBadge: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 30, style: .continuous)
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
                 .fill(
                     LinearGradient(
                         colors: [
                             app.tint,
-                            app.tint.opacity(0.72)
+                            app.tint.opacity(0.88)
                         ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
+                        startPoint: .top,
+                        endPoint: .bottom
                     )
                 )
-            RoundedRectangle(cornerRadius: 30, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.25), lineWidth: 0.8)
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.12), lineWidth: 0.5)
             Image(systemName: app.icon)
-                .font(.system(size: 56, weight: .semibold))
+                .font(.system(size: 44, weight: .medium))
                 .foregroundStyle(.white)
-                .shadow(color: .black.opacity(0.3), radius: 4, y: 2)
+                .symbolEffect(.bounce, options: .nonRepeating, value: isActive)
         }
-        .frame(width: 124, height: 124)
-        .shadow(color: app.tint.opacity(0.55), radius: 44, y: 16)
-        .shadow(color: .black.opacity(0.45), radius: 20, y: 12)
+        .frame(width: 96, height: 96)
+        .shadow(color: app.tint.opacity(0.30), radius: 22, y: 10)
         .accessibilityHidden(true)
     }
 
     private var openLink: some View {
         NavigationLink(value: app) {
-            HStack(spacing: 10) {
+            HStack(spacing: 7) {
                 Text("Open")
-                    .font(.subheadline.weight(.semibold))
+                    .font(.system(size: 14, weight: .medium))
                 Image(systemName: "arrow.right")
-                    .font(.footnote.weight(.bold))
+                    .font(.system(size: 11, weight: .semibold))
             }
             .foregroundStyle(.white)
-            .padding(.horizontal, 26)
-            .padding(.vertical, 15)
-            .glassEffect(.regular.tint(app.tint).interactive(), in: .capsule)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 11)
+            .background(
+                Capsule()
+                    .fill(StoreTheme.surface)
+            )
+            .overlay(
+                Capsule()
+                    .strokeBorder(StoreTheme.hairline, lineWidth: 0.5)
+            )
         }
         .buttonStyle(.plain)
+        .hoverEffect(.lift)
         .accessibilityLabel("Open \(app.name)")
         .accessibilityAddTraits(.isButton)
     }

@@ -11,8 +11,20 @@ import SwiftUI
 struct StoreApp: App {
     var body: some Scene {
         WindowGroup {
-            NavigationStack {
-                ContentView(miniApps: demoMiniApps)
+            TabView {
+                Tab("Home", systemImage: "house.fill") {
+                    PlaceholderTab(title: "Home", icon: "house.fill")
+                }
+
+                Tab("Apps", systemImage: "square.grid.2x2.fill") {
+                    NavigationStack {
+                        ContentView(miniApps: demoMiniApps)
+                    }
+                }
+
+                Tab("Profile", systemImage: "person.crop.circle.fill") {
+                    PlaceholderTab(title: "Profile", icon: "person.crop.circle.fill")
+                }
             }
             .preferredColorScheme(.dark)
         }
@@ -114,7 +126,33 @@ struct StoreApp: App {
     }
 }
 
-// MARK: - Shared demo destination
+// MARK: - Placeholder tabs (siblings of the mini-app picker)
+
+private struct PlaceholderTab: View {
+    let title: String
+    let icon: String
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                Color(red: 0.04, green: 0.04, blue: 0.05).ignoresSafeArea()
+                VStack(spacing: 14) {
+                    Image(systemName: icon)
+                        .font(.system(size: 40, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.35))
+                    Text(title)
+                        .font(.system(size: 22, weight: .semibold))
+                        .foregroundStyle(.white)
+                }
+            }
+            .navigationTitle(title)
+            .toolbarBackground(.hidden, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
+        }
+    }
+}
+
+// MARK: - Demo destination (pushed when an app is opened)
 
 private struct DemoBody: View {
     let title: String
