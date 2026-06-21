@@ -45,29 +45,25 @@ struct MiniApp: Identifiable, Hashable {
 struct ContentView: View {
     let miniApps: [MiniApp]
 
-    @State private var selection: String
+    @State private var selection: String?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init(miniApps: [MiniApp]) {
         self.miniApps = miniApps
-        _selection = State(initialValue: miniApps.first?.id ?? "")
+        _selection = State(initialValue: miniApps.first?.id)
     }
 
     var body: some View {
         ZStack(alignment: .bottom) {
             Color.black.ignoresSafeArea()
 
-            TabView(selection: $selection) {
-                ForEach(miniApps) { app in
-                    MiniAppWorld(app: app)
-                        .tag(app.id)
-                }
-            }
-            .tabViewStyle(.page(indexDisplayMode: .never))
-            .ignoresSafeArea(.container, edges: .horizontal)
+            worldsScroller
 
             indicator
-                .padding(.bottom, 28)
+                .padding(.bottom, 24)
+                .accessibilityHidden(true)
         }
+        .sensoryFeedback(.selection, trigger: selection)
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
@@ -77,6 +73,27 @@ struct ContentView: View {
         .preferredColorScheme(.dark)
     }
 
+    private var worldsScroller: some View {
+        ScrollView(.horizontal) {
+            LazyHStack(spacing: 0) {
+                ForEach(miniApps) { app in
+                    MiniAppWorld(app: app)
+                        .containerRelativeFrame(.horizontal)
+                        .id(app.id)
+                        .scrollTransition(axis: .horizontal) { content, phase in
+                            content
+                                .opacity(reduceMotion ? 1 : (phase.isIdentity ? 1 : 0.35))
+                                .scaleEffect(reduceMotion ? 1 : (phase.isIdentity ? 1 : 0.94))
+                        }
+                }
+            }
+            .scrollTargetLayout()
+        }
+        .scrollTargetBehavior(.paging)
+        .scrollPosition(id: $selection)
+        .scrollIndicators(.hidden)
+    }
+
     private var indicator: some View {
         HStack(spacing: 6) {
             ForEach(miniApps) { app in
@@ -84,7 +101,7 @@ struct ContentView: View {
                     .fill(
                         selection == app.id
                             ? Color.white
-                            : Color.white.opacity(0.20)
+                            : Color.white.opacity(0.22)
                     )
                     .frame(width: selection == app.id ? 22 : 6, height: 6)
                     .animation(.spring(response: 0.35, dampingFraction: 0.85), value: selection)
@@ -92,15 +109,7 @@ struct ContentView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .background(
-            Capsule()
-                .fill(.ultraThinMaterial)
-                .opacity(0.85)
-        )
-        .overlay(
-            Capsule()
-                .strokeBorder(Color.white.opacity(0.08), lineWidth: 0.5)
-        )
+        .glassEffect(.regular, in: .capsule)
     }
 }
 
@@ -120,63 +129,59 @@ private struct MiniAppWorld: View {
                     .padding(.bottom, 40)
 
                 Text(app.name)
-                    .font(.system(size: 42, weight: .bold))
+                    .font(.system(size: 40, weight: .bold))
                     .foregroundStyle(.white)
-                    .tracking(-1.0)
+                    .tracking(-0.8)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 24)
                     .padding(.bottom, 12)
+                    .dynamicTypeSize(...DynamicTypeSize.accessibility1)
 
                 Text(app.tagline)
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.65))
+                    .font(.callout.weight(.medium))
+                    .foregroundStyle(.white.opacity(0.68))
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 40)
+                    .dynamicTypeSize(...DynamicTypeSize.accessibility2)
 
                 Spacer(minLength: 40)
 
-                NavigationLink(value: app) {
-                    openButton
-                }
-                .buttonStyle(WorldButtonStyle())
-                .padding(.bottom, 110)
+                openLink
+                    .padding(.bottom, 108)
             }
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(app.name). \(app.tagline)")
+        .accessibilityAddTraits(.isHeader)
     }
 
     private var atmosphere: some View {
         ZStack {
-            Color.black
-
-            RadialGradient(
-                colors: [
-                    app.tint.opacity(0.55),
-                    app.tint.opacity(0.18),
-                    Color.clear
+            MeshGradient(
+                width: 3,
+                height: 3,
+                points: [
+                    [0.0, 0.0], [0.5, 0.0], [1.0, 0.0],
+                    [0.0, 0.5], [0.5, 0.32], [1.0, 0.5],
+                    [0.0, 1.0], [0.5, 1.0], [1.0, 1.0]
                 ],
-                center: UnitPoint(x: 0.5, y: 0.32),
-                startRadius: 20,
-                endRadius: 440
+                colors: [
+                    .black,
+                    app.tint.opacity(0.60),
+                    .black,
+                    app.tint.opacity(0.32),
+                    app.tint.opacity(0.78),
+                    app.tint.opacity(0.22),
+                    .black,
+                    app.tint.opacity(0.18),
+                    .black
+                ]
             )
 
             RadialGradient(
-                colors: [app.tint.opacity(0.28), Color.clear],
-                center: UnitPoint(x: 0.85, y: 0.9),
-                startRadius: 0,
-                endRadius: 280
-            )
-
-            RadialGradient(
-                colors: [app.tint.opacity(0.22), Color.clear],
-                center: UnitPoint(x: 0.12, y: 0.88),
-                startRadius: 0,
-                endRadius: 240
-            )
-
-            RadialGradient(
-                colors: [Color.clear, Color.black.opacity(0.45)],
+                colors: [.clear, .black.opacity(0.40)],
                 center: .center,
-                startRadius: 220,
+                startRadius: 240,
                 endRadius: 620
             )
         }
@@ -190,7 +195,7 @@ private struct MiniAppWorld: View {
                     LinearGradient(
                         colors: [
                             app.tint,
-                            app.tint.opacity(0.70)
+                            app.tint.opacity(0.72)
                         ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
@@ -206,38 +211,25 @@ private struct MiniAppWorld: View {
         .frame(width: 124, height: 124)
         .shadow(color: app.tint.opacity(0.55), radius: 44, y: 16)
         .shadow(color: .black.opacity(0.45), radius: 20, y: 12)
+        .accessibilityHidden(true)
     }
 
-    private var openButton: some View {
-        HStack(spacing: 10) {
-            Text("Open")
-                .font(.system(size: 15, weight: .semibold))
-            Image(systemName: "arrow.right")
-                .font(.system(size: 13, weight: .bold))
+    private var openLink: some View {
+        NavigationLink(value: app) {
+            HStack(spacing: 10) {
+                Text("Open")
+                    .font(.subheadline.weight(.semibold))
+                Image(systemName: "arrow.right")
+                    .font(.footnote.weight(.bold))
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, 26)
+            .padding(.vertical, 15)
+            .glassEffect(.regular.tint(app.tint).interactive(), in: .capsule)
         }
-        .foregroundStyle(.white)
-        .padding(.horizontal, 26)
-        .padding(.vertical, 15)
-        .background(
-            Capsule()
-                .fill(.ultraThinMaterial)
-        )
-        .overlay(
-            Capsule()
-                .strokeBorder(Color.white.opacity(0.22), lineWidth: 0.6)
-        )
-        .shadow(color: app.tint.opacity(0.35), radius: 18, y: 8)
-    }
-}
-
-// MARK: - Style
-
-private struct WorldButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.96 : 1.0)
-            .opacity(configuration.isPressed ? 0.85 : 1.0)
-            .animation(.easeOut(duration: 0.16), value: configuration.isPressed)
+        .buttonStyle(.plain)
+        .accessibilityLabel("Open \(app.name)")
+        .accessibilityAddTraits(.isButton)
     }
 }
 
