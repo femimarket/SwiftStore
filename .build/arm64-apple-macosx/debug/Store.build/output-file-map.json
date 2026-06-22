@@ -1,0 +1,12 @@
+{
+  "": {
+    "swift-dependencies": "/Users/u/swiftapps/Store/.build/arm64-apple-macosx/debug/Store.build/primary.swiftdeps"
+  },
+  "/Users/u/swiftapps/Store/Store/ContentView.swift": {
+    "dependencies": "/Users/u/swiftapps/Store/.build/arm64-apple-macosx/debug/Store.build/ContentView.d",
+    "object": "/Users/u/swiftapps/Store/.build/arm64-apple-macosx/debug/Store.build/ContentView.swift.o",
+    "swiftmodule": "/Users/u/swiftapps/Store/.build/arm64-apple-macosx/debug/Store.build/ContentView~partial.swiftmodule",
+    "swift-dependencies": "/Users/u/swiftapps/Store/.build/arm64-apple-macosx/debug/Store.build/ContentView.swiftdeps",
+    "diagnostics": "/Users/u/swiftapps/Store/.build/arm64-apple-macosx/debug/Store.build/ContentView.dia"
+  }
+}

@@ -36,7 +36,7 @@ struct StoreApp: App {
                 id: "lyricseditor",
                 name: "Lyrics Editor",
                 tagline: "Write, format, and refine songs",
-                icon: "music.note.list",
+                systemImage: "music.note.list",
                 tint: Color(red: 0.62, green: 0.52, blue: 1.0)
             ) {
                 DemoBody(title: "Lyrics Editor", icon: "music.note.list", tint: Color(red: 0.62, green: 0.52, blue: 1.0))
@@ -45,7 +45,7 @@ struct StoreApp: App {
                 id: "charactercast",
                 name: "Character Cast",
                 tagline: "Build casts for your stories",
-                icon: "theatermasks.fill",
+                systemImage: "theatermasks.fill",
                 tint: Color(red: 1.0, green: 0.55, blue: 0.42)
             ) {
                 DemoBody(title: "Character Cast", icon: "theatermasks.fill", tint: Color(red: 1.0, green: 0.55, blue: 0.42))
@@ -54,7 +54,7 @@ struct StoreApp: App {
                 id: "moodboard",
                 name: "Moodboard",
                 tagline: "Collect references and palettes",
-                icon: "rectangle.grid.2x2.fill",
+                systemImage: "rectangle.grid.2x2.fill",
                 tint: Color(red: 1.0, green: 0.45, blue: 0.75)
             ) {
                 DemoBody(title: "Moodboard", icon: "rectangle.grid.2x2.fill", tint: Color(red: 1.0, green: 0.45, blue: 0.75))
@@ -63,7 +63,7 @@ struct StoreApp: App {
                 id: "scenebuilder",
                 name: "Scene Builder",
                 tagline: "Storyboard scenes and beats",
-                icon: "film.fill",
+                systemImage: "film.fill",
                 tint: Color(red: 0.35, green: 0.85, blue: 0.95)
             ) {
                 DemoBody(title: "Scene Builder", icon: "film.fill", tint: Color(red: 0.35, green: 0.85, blue: 0.95))
@@ -72,7 +72,7 @@ struct StoreApp: App {
                 id: "voicenotes",
                 name: "Voice Notes",
                 tagline: "Capture ideas on the fly",
-                icon: "waveform",
+                systemImage: "waveform",
                 tint: Color(red: 0.55, green: 0.95, blue: 0.70)
             ) {
                 DemoBody(title: "Voice Notes", icon: "waveform", tint: Color(red: 0.55, green: 0.95, blue: 0.70))
@@ -81,7 +81,7 @@ struct StoreApp: App {
                 id: "rhymefinder",
                 name: "Rhyme Finder",
                 tagline: "Search rhymes and syllables",
-                icon: "text.magnifyingglass",
+                systemImage: "text.magnifyingglass",
                 tint: Color(red: 1.0, green: 0.80, blue: 0.35)
             ) {
                 DemoBody(title: "Rhyme Finder", icon: "text.magnifyingglass", tint: Color(red: 1.0, green: 0.80, blue: 0.35))
@@ -90,7 +90,7 @@ struct StoreApp: App {
                 id: "setlist",
                 name: "Setlist",
                 tagline: "Plan and order performances",
-                icon: "list.number",
+                systemImage: "list.number",
                 tint: Color(red: 0.50, green: 0.70, blue: 1.0)
             ) {
                 DemoBody(title: "Setlist", icon: "list.number", tint: Color(red: 0.50, green: 0.70, blue: 1.0))
@@ -99,7 +99,7 @@ struct StoreApp: App {
                 id: "metronome",
                 name: "Metronome",
                 tagline: "Tap, tempo, and time signatures",
-                icon: "metronome.fill",
+                systemImage: "metronome.fill",
                 tint: Color(red: 0.95, green: 0.45, blue: 0.55)
             ) {
                 DemoBody(title: "Metronome", icon: "metronome.fill", tint: Color(red: 0.95, green: 0.45, blue: 0.55))
@@ -108,7 +108,7 @@ struct StoreApp: App {
                 id: "archive",
                 name: "Archive",
                 tagline: "Browse past sessions and drafts",
-                icon: "archivebox.fill",
+                systemImage: "archivebox.fill",
                 tint: Color(red: 0.80, green: 0.75, blue: 0.95)
             ) {
                 DemoBody(title: "Archive", icon: "archivebox.fill", tint: Color(red: 0.80, green: 0.75, blue: 0.95))
@@ -117,7 +117,7 @@ struct StoreApp: App {
                 id: "settings",
                 name: "Account & Settings",
                 tagline: "Profile, sync, and preferences",
-                icon: "gearshape.fill",
+                systemImage: "gearshape.fill",
                 tint: Color(red: 0.70, green: 0.70, blue: 0.75)
             ) {
                 DemoBody(title: "Account & Settings", icon: "gearshape.fill", tint: Color(red: 0.70, green: 0.70, blue: 0.75))
