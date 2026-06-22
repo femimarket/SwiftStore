@@ -61,6 +61,7 @@ struct ContentView: View {
 
     @State private var selection: String?
     @State private var searchText: String = ""
+    @State private var showingOverview: Bool = false
     @Namespace private var zoomNamespace
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.horizontalSizeClass) private var sizeClass
@@ -79,15 +80,27 @@ struct ContentView: View {
     }
 
     var body: some View {
-        Group {
-            if sizeClass == .regular {
-                regularLayout
-            } else {
-                compactLayout
+        ZStack {
+            Group {
+                if sizeClass == .regular {
+                    regularLayout
+                } else {
+                    compactLayout
+                }
+            }
+
+            if showingOverview {
+                AppGridOverview(
+                    apps: miniApps,
+                    selection: $selection,
+                    isPresented: $showingOverview
+                )
+                .transition(.opacity)
             }
         }
         .background(StoreTheme.canvas.ignoresSafeArea())
         .sensoryFeedback(.selection, trigger: selection)
+        .sensoryFeedback(.impact(weight: .medium), trigger: showingOverview) { _, new in new }
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
@@ -112,7 +125,8 @@ struct ContentView: View {
                         app: app,
                         isActive: selection == app.id,
                         namespace: zoomNamespace,
-                        reduceMotion: reduceMotion
+                        reduceMotion: reduceMotion,
+                        onLongPress: openOverview
                     )
                     .containerRelativeFrame(.horizontal)
                     .id(app.id)
@@ -124,9 +138,15 @@ struct ContentView: View {
             }
             .scrollTargetLayout()
         }
-        .scrollTargetBehavior(.paging)
+        .scrollTargetBehavior(.viewAligned)
         .scrollPosition(id: $selection)
         .scrollIndicators(.hidden)
+    }
+
+    private func openOverview() {
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
+            showingOverview = true
+        }
     }
 
     // MARK: Regular
@@ -147,7 +167,8 @@ struct ContentView: View {
                         app: app,
                         isActive: true,
                         namespace: zoomNamespace,
-                        reduceMotion: reduceMotion
+                        reduceMotion: reduceMotion,
+                        onLongPress: openOverview
                     )
                     .id(app.id)
                     .transition(.opacity)
@@ -287,6 +308,7 @@ private struct MiniAppWorld: View {
     let isActive: Bool
     let namespace: Namespace.ID
     let reduceMotion: Bool
+    let onLongPress: () -> Void
 
     var body: some View {
         ZStack {
@@ -328,10 +350,20 @@ private struct MiniAppWorld: View {
                     .padding(.bottom, 108)
             }
         }
+        .contentShape(Rectangle())
+        .simultaneousGesture(
+            LongPressGesture(minimumDuration: 0.45)
+                .onEnded { _ in
+                    onLongPress()
+                }
+        )
         .accessibilityElement(children: .combine)
         .accessibilityLabel(Text("\(app.name). \(app.tagline)"))
-        .accessibilityHint(Text("Double tap to open \(app.name)"))
+        .accessibilityHint(Text("Double tap to open \(app.name). Touch and hold for all apps."))
         .accessibilityAddTraits(.isHeader)
+        .accessibilityAction(named: Text("Show all apps")) {
+            onLongPress()
+        }
     }
 
     private var vignette: some View {
@@ -398,6 +430,126 @@ private struct MiniAppWorld: View {
         .hoverEffect(.lift)
         .accessibilityLabel(Text("Open \(app.name)"))
         .accessibilityAddTraits(.isButton)
+    }
+}
+
+// MARK: - Grid overview
+
+private struct AppGridOverview: View {
+    let apps: [MiniApp]
+    @Binding var selection: String?
+    @Binding var isPresented: Bool
+
+    private let columns = [
+        GridItem(.adaptive(minimum: 88, maximum: 120), spacing: 18)
+    ]
+
+    var body: some View {
+        ZStack {
+            StoreTheme.canvas
+                .opacity(0.97)
+                .ignoresSafeArea()
+                .onTapGesture { dismiss() }
+
+            VStack(spacing: 0) {
+                HStack {
+                    Text("Mini Apps")
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .tracking(-0.3)
+                    Spacer()
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(.white.opacity(0.80))
+                            .frame(width: 30, height: 30)
+                            .background(Circle().fill(StoreTheme.surfaceStrong))
+                            .overlay(Circle().strokeBorder(StoreTheme.hairlineSoft, lineWidth: 0.5))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(Text("Close"))
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 16)
+                .padding(.bottom, 22)
+
+                ScrollView {
+                    LazyVGrid(columns: columns, spacing: 22) {
+                        ForEach(apps) { app in
+                            Button {
+                                pick(app)
+                            } label: {
+                                AppGridTile(app: app, isSelected: selection == app.id)
+                            }
+                            .buttonStyle(.plain)
+                            .hoverEffect(.lift)
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 40)
+                }
+            }
+        }
+    }
+
+    private func dismiss() {
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+            isPresented = false
+        }
+    }
+
+    private func pick(_ app: MiniApp) {
+        withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+            selection = app.id
+            isPresented = false
+        }
+    }
+}
+
+private struct AppGridTile: View {
+    let app: MiniApp
+    let isSelected: Bool
+
+    var body: some View {
+        VStack(spacing: 8) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [app.tint, app.tint.opacity(0.88)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .strokeBorder(Color.white.opacity(0.12), lineWidth: 0.5)
+                Image(systemName: app.icon)
+                    .font(.system(size: 26, weight: .medium))
+                    .foregroundStyle(.white)
+            }
+            .frame(width: 68, height: 68)
+            .shadow(color: app.tint.opacity(0.30), radius: 14, y: 6)
+            .overlay(
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .strokeBorder(
+                        Color.white.opacity(isSelected ? 0.45 : 0),
+                        lineWidth: 1.5
+                    )
+                    .padding(-4)
+            )
+
+            Text(app.name)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(.white.opacity(0.85))
+                .lineLimit(1)
+                .multilineTextAlignment(.center)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(Text(app.name))
+        .accessibilityHint(Text("Double tap to jump to \(app.name)"))
+        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
     }
 }
 
